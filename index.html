@@ -106,67 +106,143 @@
     .ftab.off:hover{background:rgba(5,95,119,.07);color:#055F77}
   </style>
 
-  <!-- ===== Google Analytics G-0HZ0S7NNT0 ===== -->
+  <!-- ===== Google Analytics G-0HZ0S7NNT0 — Motor de Tracking v3 ===== -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-0HZ0S7NNT0"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    // Detecta origem: /instagram, /facebook, /home, UTM ou referrer
-    var _orig = 'direto';
-    var _p = new URLSearchParams(location.search);
-    if (_p.get('origem')) {
-      _orig = _p.get('origem');
-      try { sessionStorage.setItem('_fo', _orig); } catch(e){}
-    } else {
-      try { var _s = sessionStorage.getItem('_fo'); if (_s) _orig = _s; } catch(e){}
-    }
-    if (_orig === 'direto') {
-      var _ref = document.referrer || '';
-      if (_ref.indexOf('instagram.com') > -1) _orig = 'instagram_referencia';
-      else if (_ref.indexOf('facebook.com') > -1 || _ref.indexOf('fb.com') > -1) _orig = 'facebook_referencia';
-    }
+    /* ──────────────────────────────────────────────
+       1. ATRIBUIÇÃO — origem + UTM + IDs de anúncio
+       Prioridade: ?origem= > UTM > gclid/fbclid > sessão > referrer
+       ────────────────────────────────────────────── */
+    (function(){
+      var p = new URLSearchParams(location.search);
+      function ss(k){ try { return sessionStorage.getItem(k); } catch(e){ return null; } }
+      function sset(k,v){ try { sessionStorage.setItem(k,v); } catch(e){} }
 
-    gtag('config', 'G-0HZ0S7NNT0', {
-      campaign_source: _orig,
-      campaign_medium: (_orig.indexOf('instagram') > -1 || _orig.indexOf('facebook') > -1) ? 'social' : 'direct'
-    });
-    window._FO = _orig;
+      // Origem do canal
+      var orig = 'direto';
+      if (p.get('origem'))            { orig = p.get('origem'); sset('_fo', orig); }
+      else if (p.get('utm_source'))   { orig = p.get('utm_source'); sset('_fo', orig); }
+      else if (ss('_fo'))             { orig = ss('_fo'); }
+      else {
+        var r = document.referrer || '';
+        if (r.indexOf('instagram.com') > -1) orig = 'instagram_referencia';
+        else if (r.indexOf('facebook.com') > -1 || r.indexOf('fb.com') > -1) orig = 'facebook_referencia';
+        else if (r.indexOf('google.') > -1) orig = 'google_organico';
+      }
+      window._FO = orig;
 
-    // Rastreia clique no WhatsApp
-    window._waClick = function(label) {
-      gtag('event', 'clique_whatsapp', { origem: window._FO, botao: label || 'geral' });
+      // Campanha / mídia / termo / conteúdo (UTM + click IDs p/ anúncios pagos)
+      ['utm_medium','utm_campaign','utm_content','utm_term','gclid','fbclid'].forEach(function(k){
+        if (p.get(k)) sset('_'+k, p.get(k));
+      });
+      window._ATTR = {
+        source:   orig,
+        medium:   ss('_utm_medium')   || ((orig.indexOf('instagram')>-1||orig.indexOf('facebook')>-1)?'social':(orig.indexOf('google')>-1?'organic':'direct')),
+        campaign: ss('_utm_campaign') || '(none)',
+        content:  ss('_utm_content')  || '',
+        term:     ss('_utm_term')     || '',
+        gclid:    ss('_gclid')        || '',
+        fbclid:   ss('_fbclid')       || ''
+      };
+
+      gtag('config', 'G-0HZ0S7NNT0', {
+        campaign_source:   window._ATTR.source,
+        campaign_medium:   window._ATTR.medium,
+        campaign_name:     window._ATTR.campaign,
+        campaign_content:  window._ATTR.content,
+        campaign_term:     window._ATTR.term
+      });
+    })();
+
+    /* ──────────────────────────────────────────────
+       2. HELPER CENTRAL — toda tag passa por aqui
+       Anexa atribuição automaticamente (padrão Magalu/CB)
+       ────────────────────────────────────────────── */
+    window.track = function(eventName, params){
+      var base = {
+        origem:       window._FO,
+        canal_midia:  window._ATTR.medium,
+        campanha:     window._ATTR.campaign
+      };
+      params = params || {};
+      for (var k in params) base[k] = params[k];
+      gtag('event', eventName, base);
     };
 
-    // ── Tempo de permanência na página ──
-    var _t0 = Date.now();
-    var _milestones = [30, 60, 120, 300];
-    var _timerFired = {};
-    function _checkTime() {
-      var elapsed = Math.round((Date.now() - _t0) / 1000);
-      _milestones.forEach(function(s) {
-        if (!_timerFired[s] && elapsed >= s) {
-          _timerFired[s] = true;
-          gtag('event', 'tempo_pagina', { segundos: s, origem: window._FO });
-        }
-      });
-    }
-    setInterval(_checkTime, 5000);
+    // Compat: helper antigo de WhatsApp
+    window._waClick = function(label){
+      window.track('clique_whatsapp', { botao: label || 'geral' });
+      window.track('generate_lead',   { metodo: 'whatsapp', botao: label || 'geral', value: 1, currency: 'BRL' });
+    };
 
-    // ── Scroll depth ──
-    var _scrollFired = {};
-    window.addEventListener('scroll', function() {
-      var pct = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
-      [25, 50, 75, 90].forEach(function(p) {
-        if (!_scrollFired[p] && pct >= p) {
-          _scrollFired[p] = true;
-          gtag('event', 'scroll_profundidade', { porcentagem: p, origem: window._FO });
-        }
+    /* ──────────────────────────────────────────────
+       3. TEMPO ENGAJADO (pausa quando aba oculta)
+       ────────────────────────────────────────────── */
+    (function(){
+      var engaged = 0, last = Date.now(), fired = {}, marks = [30,60,120,300];
+      function flush(){
+        if (!document.hidden) engaged += (Date.now()-last)/1000;
+        last = Date.now();
+        marks.forEach(function(s){
+          if (!fired[s] && engaged >= s){ fired[s]=true; window.track('tempo_pagina',{segundos:s}); }
+        });
+      }
+      document.addEventListener('visibilitychange', function(){
+        if (document.hidden) flush(); else last = Date.now();
       });
-    }, { passive: true });
+      setInterval(flush, 5000);
+    })();
+
+    /* ──────────────────────────────────────────────
+       4. SCROLL DEPTH (com guarda contra div/0)
+       ────────────────────────────────────────────── */
+    (function(){
+      var fired = {}, ticking = false;
+      function check(){
+        ticking = false;
+        var doc = document.documentElement;
+        var max = (doc.scrollHeight || document.body.scrollHeight) - window.innerHeight;
+        if (max <= 0) return;
+        var pct = Math.round((window.scrollY / max) * 100);
+        [25,50,75,90].forEach(function(t){
+          if (!fired[t] && pct >= t){ fired[t]=true; window.track('scroll_profundidade',{porcentagem:t}); }
+        });
+      }
+      window.addEventListener('scroll', function(){
+        if (!ticking){ ticking = true; requestAnimationFrame(check); }
+      }, { passive:true });
+    })();
+
+    /* ──────────────────────────────────────────────
+       5. ERROS JS (saúde técnica do site)
+       ────────────────────────────────────────────── */
+    window.addEventListener('error', function(e){
+      window.track('erro_js', {
+        mensagem: (e.message||'').slice(0,120),
+        arquivo:  (e.filename||'').slice(-60),
+        linha:    e.lineno || 0
+      });
+    });
+
+    /* ──────────────────────────────────────────────
+       6. SAÍDA DA PÁGINA — sela a sessão
+       ────────────────────────────────────────────── */
+    var _sai = false;
+    function _onExit(){
+      if (_sai) return; _sai = true;
+      window.track('saida_pagina', { profundidade_max: (function(){
+        var doc=document.documentElement, m=(doc.scrollHeight||document.body.scrollHeight)-window.innerHeight;
+        return m>0 ? Math.round((window.scrollY/m)*100) : 100;
+      })() });
+    }
+    document.addEventListener('visibilitychange', function(){ if(document.hidden) _onExit(); });
+    window.addEventListener('pagehide', _onExit);
   </script>
-  <!-- ===== Fim Google Analytics ===== -->
+  <!-- ===== Fim Motor de Tracking ===== -->
 </head>
 
 <body class="font-body bg-white" x-data="{ menu: false, faq: null, testi: 0 }">
@@ -179,11 +255,11 @@
         <span class="font-display font-bold text-pri text-[15px] sm:text-[17px] tracking-wide">FERREIRA</span>
       </a>
       <nav class="hidden lg:flex items-center gap-7">
-        <a href="#sobre" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Sobre</a>
-        <a href="#servicos" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Serviços</a>
-        <a href="#estrutura" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Estrutura</a>
-        <!-- PRODUTOS NAV OCULTO TEMPORARIAMENTE <a href="#produtos" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Produtos</a> -->
-        <a href="#contato" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Contato</a>
+        <a href="#sobre" onclick="window.track('menu_navegacao',{destino:'sobre'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Sobre</a>
+        <a href="#servicos" onclick="window.track('menu_navegacao',{destino:'servicos'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Serviços</a>
+        <a href="#estrutura" onclick="window.track('menu_navegacao',{destino:'estrutura'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Estrutura</a>
+        <!-- PRODUTOS NAV OCULTO TEMPORARIAMENTE <a href="#produtos" onclick="window.track('menu_navegacao',{destino:'produtos'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Produtos</a> -->
+        <a href="#contato" onclick="window.track('menu_navegacao',{destino:'contato'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Contato</a>
       </nav>
       <a href="https://wa.me/5514997856641?text=Olá!%20Gostaria%20de%20agendar%20uma%20consulta%20na%20Ferreira%20Odontologia"
          onclick="_waClick('header')" target="_blank" class="hidden lg:flex items-center gap-2 bg-pri text-white font-body font-medium text-sm px-5 py-2.5 rounded-full hover:bg-pri-dk transition-all">
@@ -204,11 +280,11 @@
       <button @click="menu=false" class="absolute top-5 right-5 w-11 h-11 flex items-center justify-center rounded-full bg-white/10" aria-label="Fechar menu">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
-      <a href="#sobre" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Sobre</a>
-      <a href="#servicos" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Serviços</a>
-      <a href="#estrutura" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Estrutura</a>
-      <!-- PRODUTOS NAV MOBILE OCULTO TEMPORARIAMENTE <a href="#produtos" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Produtos</a> -->
-      <a href="#contato" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Contato</a>
+      <a href="#sobre" onclick="window.track('menu_navegacao',{destino:'sobre'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Sobre</a>
+      <a href="#servicos" onclick="window.track('menu_navegacao',{destino:'servicos'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Serviços</a>
+      <a href="#estrutura" onclick="window.track('menu_navegacao',{destino:'estrutura'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Estrutura</a>
+      <!-- PRODUTOS NAV MOBILE OCULTO TEMPORARIAMENTE <a href="#produtos" onclick="window.track('menu_navegacao',{destino:'produtos'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Produtos</a> -->
+      <a href="#contato" onclick="window.track('menu_navegacao',{destino:'contato'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Contato</a>
       <div class="w-8 h-px bg-white/20 my-1"></div>
       <a href="https://wa.me/5514997856641?text=Olá!%20Gostaria%20de%20agendar%20uma%20consulta%20na%20Ferreira%20Odontologia" target="_blank" onclick="_waClick('menu_mobile')" @click="menu=false" class="flex items-center gap-2 bg-[#25D366] text-white font-body font-medium px-7 py-3 rounded-full shadow-lg">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.856L0 24l6.335-1.652A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818c-1.855 0-3.63-.5-5.182-1.446l-.372-.22-3.858 1.007 1.03-3.765-.243-.387A9.78 9.78 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818S21.818 6.585 21.818 12 17.415 21.818 12 21.818z"/></svg>
@@ -240,7 +316,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.856L0 24l6.335-1.652A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818c-1.855 0-3.63-.5-5.182-1.446l-.372-.22-3.858 1.007 1.03-3.765-.243-.387A9.78 9.78 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818S21.818 6.585 21.818 12 17.415 21.818 12 21.818z"/></svg>
             Agendar consulta
           </a>
-          <a href="#servicos" class="flex items-center gap-2 border border-white/30 text-white font-body font-medium px-6 py-3.5 rounded-full hover:bg-white/10 transition-all">
+          <a href="#servicos" onclick="window.track('menu_navegacao',{destino:'servicos'})" class="flex items-center gap-2 border border-white/30 text-white font-body font-medium px-6 py-3.5 rounded-full hover:bg-white/10 transition-all">
             Explorar serviços
           </a>
         </div>
@@ -692,7 +768,7 @@
       <div class="flex items-center justify-center gap-6 mt-8">
 
         <!-- Prev -->
-        <button @click="prev()"
+        <button @click="prev(); window.track('depoimento_navegar',{acao:'anterior'})"
                 class="w-10 h-10 rounded-full border border-dk/15 flex items-center justify-center hover:border-pri hover:text-pri transition-colors"
                 aria-label="Anterior">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -700,13 +776,13 @@
 
         <!-- Dots -->
         <div class="flex gap-2">
-          <button @click="t = 0" :class="t === 0 ? 'bg-pri scale-110' : 'bg-dk/15'" class="w-2.5 h-2.5 rounded-full transition-all" aria-label="Depoimento 1"></button>
-          <button @click="t = 1" :class="t === 1 ? 'bg-pri scale-110' : 'bg-dk/15'" class="w-2.5 h-2.5 rounded-full transition-all" aria-label="Depoimento 2"></button>
-          <button @click="t = 2" :class="t === 2 ? 'bg-pri scale-110' : 'bg-dk/15'" class="w-2.5 h-2.5 rounded-full transition-all" aria-label="Depoimento 3"></button>
+          <button @click="t = 0; window.track('depoimento_navegar',{acao:'ponto_1'})" :class="t === 0 ? 'bg-pri scale-110' : 'bg-dk/15'" class="w-2.5 h-2.5 rounded-full transition-all" aria-label="Depoimento 1"></button>
+          <button @click="t = 1; window.track('depoimento_navegar',{acao:'ponto_2'})" :class="t === 1 ? 'bg-pri scale-110' : 'bg-dk/15'" class="w-2.5 h-2.5 rounded-full transition-all" aria-label="Depoimento 2"></button>
+          <button @click="t = 2; window.track('depoimento_navegar',{acao:'ponto_3'})" :class="t === 2 ? 'bg-pri scale-110' : 'bg-dk/15'" class="w-2.5 h-2.5 rounded-full transition-all" aria-label="Depoimento 3"></button>
         </div>
 
         <!-- Next -->
-        <button @click="next()"
+        <button @click="next(); window.track('depoimento_navegar',{acao:'proximo'})"
                 class="w-10 h-10 rounded-full border border-dk/15 flex items-center justify-center hover:border-pri hover:text-pri transition-colors"
                 aria-label="Próximo">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -727,35 +803,35 @@
 
       <div x-data="{ o: null }" class="divide-y divide-black/[0.06]">
         <div class="rv">
-          <button @click="o = o===1?null:1; if(o===1)gtag('event','faq_abriu',{pergunta:'agendamento',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===1?null:1; if(o===1)window.track('faq_abriu',{pergunta:'agendamento'})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Como funciona o agendamento?</span>
             <svg :class="o===1&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===1" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Pelo WhatsApp clicando em qualquer botão desta página, ou pelo formulário de contato. Nossa equipe responde rápido.</p></div>
         </div>
         <div class="rv rv-d1">
-          <button @click="o = o===2?null:2; if(o===2)gtag('event','faq_abriu',{pergunta:'lentes_contato',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===2?null:2; if(o===2)window.track('faq_abriu',{pergunta:'lentes_contato'})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Lentes de contato dental são para qualquer pessoa?</span>
             <svg :class="o===2&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===2" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Nem todo sorriso precisa de lente, mas todo sorriso precisa de critério. Analisamos estrutura, oclusão e expectativa antes de indicar.</p></div>
         </div>
         <div class="rv rv-d2">
-          <button @click="o = o===3?null:3; if(o===3)gtag('event','faq_abriu',{pergunta:'botox_preenchimento',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===3?null:3; if(o===3)window.track('faq_abriu',{pergunta:'botox_preenchimento'})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Botox e preenchimento deixam artificial?</span>
             <svg :class="o===3&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===3" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Quando bem indicados, ninguém percebe que você fez. Só percebe que você está melhor. Cada face é analisada individualmente.</p></div>
         </div>
         <div class="rv rv-d3">
-          <button @click="o = o===4?null:4; if(o===4)gtag('event','faq_abriu',{pergunta:'clareamento',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===4?null:4; if(o===4)window.track('faq_abriu',{pergunta:'clareamento'})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Clareamento enfraquece os dentes?</span>
             <svg :class="o===4&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===4" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Não. O clareamento age na pigmentação, não na estrutura. Preserva a saúde dental.</p></div>
         </div>
         <div class="rv rv-d4">
-          <button @click="o = o===5?null:5; if(o===5)gtag('event','faq_abriu',{pergunta:'criancas',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===5?null:5; if(o===5)window.track('faq_abriu',{pergunta:'criancas'})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Vocês atendem crianças?</span>
             <svg :class="o===5&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
@@ -770,7 +846,7 @@
     <div class="max-w-5xl mx-auto px-5 lg:px-8">
       <div class="grid lg:grid-cols-5 gap-12 lg:gap-16">
         <!-- Form -->
-        <div class="lg:col-span-3 rv" x-data="{ sent:false, nome:'', tel:'', srv:'', msg_text:'', err:{} }">
+        <div class="lg:col-span-3 rv" x-data="{ sent:false, started:false, nome:'', tel:'', srv:'', msg_text:'', err:{}, fstart(){ if(!this.started){ this.started=true; window.track('form_start',{formulario:'contato'}); } } }">
           <span class="font-body text-pri/50 text-xs tracking-[0.25em] uppercase">Contato</span>
           <h2 class="font-display font-bold text-3xl lg:text-[40px] text-dk leading-tight mt-2 mb-10">Fale com<br>a gente</h2>
 
@@ -778,11 +854,11 @@
             <div class="grid sm:grid-cols-2 gap-5">
               <div>
                 <label class="font-body text-xs font-medium text-dk/70 mb-1.5 block">Nome *</label>
-                <input x-model="nome" type="text" placeholder="Seu nome" class="w-full px-4 py-3 rounded-xl border border-black/[0.08] bg-white font-body text-sm focus:outline-none focus:border-pri focus:ring-2 focus:ring-pri/15" :class="err.nome&&'!border-red-400'">
+                <input x-model="nome" @focus="fstart()" type="text" placeholder="Seu nome" class="w-full px-4 py-3 rounded-xl border border-black/[0.08] bg-white font-body text-sm focus:outline-none focus:border-pri focus:ring-2 focus:ring-pri/15" :class="err.nome&&'!border-red-400'">
               </div>
               <div>
                 <label class="font-body text-xs font-medium text-dk/70 mb-1.5 block">Telefone *</label>
-                <input x-model="tel" type="tel" placeholder="(14) 99999-9999" class="w-full px-4 py-3 rounded-xl border border-black/[0.08] bg-white font-body text-sm focus:outline-none focus:border-pri focus:ring-2 focus:ring-pri/15 phone-mask" :class="err.tel&&'!border-red-400'">
+                <input x-model="tel" @focus="fstart()" type="tel" placeholder="(14) 99999-9999" class="w-full px-4 py-3 rounded-xl border border-black/[0.08] bg-white font-body text-sm focus:outline-none focus:border-pri focus:ring-2 focus:ring-pri/15 phone-mask" :class="err.tel&&'!border-red-400'">
               </div>
             </div>
             <div>
@@ -801,15 +877,19 @@
                 err={};
                 if(!nome.trim())err.nome=1;
                 if(!tel.trim())err.tel=1;
-                if(Object.keys(err).length)return;
+                if(Object.keys(err).length){
+                  window.track('form_erro',{formulario:'contato',campos:Object.keys(err).join(',')});
+                  return;
+                }
                 let m='Olá! Vim pelo site e gostaria de agendar uma consulta.\n\n';
                 m+='Nome: '+nome.trim()+'\n';
                 m+='Telefone: '+tel.trim()+'\n';
                 if(srv)m+='Serviço: '+srv+'\n';
                 if(msg_text.trim())m+='Mensagem: '+msg_text.trim();
                 window.open('https://wa.me/5514997856641?text='+encodeURIComponent(m),'_blank');
-                gtag('event','formulario_enviado',{servico:srv||'nao_selecionado',origem:window._FO});
-                gtag('event','clique_whatsapp',{botao:'formulario_contato',origem:window._FO});
+                window.track('formulario_enviado',{servico:srv||'nao_selecionado'});
+                window.track('clique_whatsapp',{botao:'formulario_contato'});
+                window.track('generate_lead',{metodo:'formulario',servico:srv||'nao_selecionado',value:1,currency:'BRL'});
                 sent=true;
               " class="w-full bg-[#25D366] text-white font-body font-medium py-3.5 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2">
               Enviar Mensagem
@@ -836,7 +916,7 @@
             <p class="font-body font-bold text-dk text-sm">WhatsApp</p>
             <a href="https://wa.me/5514997856641" onclick="_waClick('rodape_telefone')" target="_blank" class="font-body text-pri text-sm hover:underline">(14) 99785-6641</a>
           </div>
-          <a href="https://maps.google.com/?q=Av+Cristo+Rei+235+Marilia+SP" onclick="gtag('event','clique_mapa',{origem:window._FO})" target="_blank" class="block bg-white rounded-xl p-6 text-center hover:shadow-md transition-all group">
+          <a href="https://maps.google.com/?q=Av+Cristo+Rei+235+Marilia+SP" onclick="window.track('clique_mapa',{})" target="_blank" class="block bg-white rounded-xl p-6 text-center hover:shadow-md transition-all group">
             <svg class="mx-auto mb-2 text-pri" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             <p class="font-body text-pri font-medium text-sm group-hover:underline">Ver no Google Maps</p>
           </a>
@@ -870,9 +950,9 @@
       <div class="max-w-7xl mx-auto px-5 lg:px-8">
         <div class="flex items-center gap-2 py-3 overflow-x-auto" style="scrollbar-width:none">
           <span class="font-body text-[11px] text-dk/30 uppercase tracking-widest mr-2 whitespace-nowrap flex-shrink-0">Filtrar:</span>
-          <button @click="filtro='todos'" class="ftab flex-shrink-0" :class="filtro==='todos'?'on':'off'">Todos</button>
+          <button @click="filtro='todos'; window.track('filtro_catalogo',{categoria:'todos'})" class="ftab flex-shrink-0" :class="filtro==='todos'?'on':'off'">Todos</button>
           <template x-for="cat in categorias" :key="cat">
-            <button @click="filtro=cat" class="ftab flex-shrink-0" :class="filtro===cat?'on':'off'" x-text="cat"></button>
+            <button @click="filtro=cat; window.track('filtro_catalogo',{categoria:cat})" class="ftab flex-shrink-0" :class="filtro===cat?'on':'off'" x-text="cat"></button>
           </template>
         </div>
       </div>
@@ -909,7 +989,7 @@
           </div>
           <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <template x-for="(p, i) in filtrados('giovana')" :key="p.nome+i">
-              <a :href="p.link" target="_blank" rel="noopener sponsored"
+              <a :href="p.link" target="_blank" rel="noopener sponsored" @click="window.track('select_item',{item_list_name:'catalogo_'+p.medica,items:[{item_name:p.nome,item_category:p.categoria,item_brand:p.medica}]}); window.track('clique_produto',{produto:p.nome,categoria:p.categoria,doutora:p.medica})"
                  class="prod-card rv block bg-white rounded-2xl overflow-hidden border border-black/[0.06] flex flex-col relative"
                  :class="i===1?'rv-d1':i===2?'rv-d2':i===3?'rv-d3':''">
                 <span x-show="p.destaque==='sim'" class="badge-fav absolute top-3 left-3 z-10 text-[10px] font-bold px-3 py-1 rounded-full tracking-wider uppercase shadow-sm">⭐ Favorito</span>
@@ -954,7 +1034,7 @@
           </div>
           <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <template x-for="(p, i) in filtrados('mayara')" :key="p.nome+i">
-              <a :href="p.link" target="_blank" rel="noopener sponsored"
+              <a :href="p.link" target="_blank" rel="noopener sponsored" @click="window.track('select_item',{item_list_name:'catalogo_'+p.medica,items:[{item_name:p.nome,item_category:p.categoria,item_brand:p.medica}]}); window.track('clique_produto',{produto:p.nome,categoria:p.categoria,doutora:p.medica})"
                  class="prod-card rv block bg-white rounded-2xl overflow-hidden border border-black/[0.06] flex flex-col relative"
                  :class="i===1?'rv-d1':i===2?'rv-d2':i===3?'rv-d3':''">
                 <span x-show="p.destaque==='sim'" class="badge-fav absolute top-3 left-3 z-10 text-[10px] font-bold px-3 py-1 rounded-full tracking-wider uppercase shadow-sm">⭐ Favorito</span>
@@ -1003,14 +1083,14 @@
           </div>
         </div>
         <nav class="flex flex-wrap gap-5">
-          <a href="#sobre" class="font-body text-white/45 text-xs hover:text-white transition-colors">Sobre</a>
-          <a href="#servicos" class="font-body text-white/45 text-xs hover:text-white transition-colors">Serviços</a>
-            <a href="#estrutura" class="font-body text-white/45 text-xs hover:text-white transition-colors">Estrutura</a>
-          <a href="#produtos" class="font-body text-white/45 text-xs hover:text-white transition-colors">Produtos</a>
-          <a href="#contato" class="font-body text-white/45 text-xs hover:text-white transition-colors">Contato</a>
+          <a href="#sobre" onclick="window.track('menu_navegacao',{destino:'sobre'})" class="font-body text-white/45 text-xs hover:text-white transition-colors">Sobre</a>
+          <a href="#servicos" onclick="window.track('menu_navegacao',{destino:'servicos'})" class="font-body text-white/45 text-xs hover:text-white transition-colors">Serviços</a>
+            <a href="#estrutura" onclick="window.track('menu_navegacao',{destino:'estrutura'})" class="font-body text-white/45 text-xs hover:text-white transition-colors">Estrutura</a>
+          <a href="#produtos" onclick="window.track('menu_navegacao',{destino:'produtos'})" class="font-body text-white/45 text-xs hover:text-white transition-colors">Produtos</a>
+          <a href="#contato" onclick="window.track('menu_navegacao',{destino:'contato'})" class="font-body text-white/45 text-xs hover:text-white transition-colors">Contato</a>
         </nav>
         <div class="flex gap-3">
-          <a href="https://instagram.com/ferreiraodontologiaesaude" onclick="gtag('event','clique_social',{rede:'instagram',origem:window._FO})" target="_blank" aria-label="Instagram" class="w-9 h-9 bg-white/8 rounded-full flex items-center justify-center hover:bg-white/15 transition-all">
+          <a href="https://instagram.com/ferreiraodontologiaesaude" onclick="window.track('clique_social',{rede:'instagram'})" target="_blank" aria-label="Instagram" class="w-9 h-9 bg-white/8 rounded-full flex items-center justify-center hover:bg-white/15 transition-all">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
           </a>
           <a href="https://wa.me/5514997856641" onclick="_waClick('rodape_icone')" target="_blank" aria-label="WhatsApp" class="w-9 h-9 bg-white/8 rounded-full flex items-center justify-center hover:bg-white/15 transition-all">
@@ -1057,7 +1137,7 @@
         if (e.isIntersecting) {
           var id = e.target.id;
           if (id) {
-            gtag('event', 'secao_visitada', { secao: id, origem: window._FO });
+            window.track('secao_visitada', { secao: id });
             _secObs.unobserve(e.target);
           }
         }
@@ -1175,6 +1255,15 @@
           }
 
           this.loading = false;
+          try {
+            window.track('view_item_list', {
+              item_list_name: 'catalogo_produtos',
+              quantidade: this.todos.length,
+              items: this.todos.slice(0, 30).map(function(p){
+                return { item_name: p.nome, item_category: p.categoria, item_brand: p.medica };
+              })
+            });
+          } catch(e){}
           this.$nextTick(() => {
             document.querySelectorAll('#catalogo .rv').forEach(el => obs.observe(el));
           });
