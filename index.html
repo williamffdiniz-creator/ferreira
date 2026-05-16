@@ -88,8 +88,9 @@
     };
   </script>
 
-  <!-- Tailwind e Alpine: defer = não bloqueiam a renderização inicial -->
-  <script defer src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind: sem defer (precisa processar as classes antes de renderizar) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine: defer ok (só controla interatividade) -->
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
   <!-- Cor da barra do navegador no celular -->
