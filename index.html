@@ -138,6 +138,33 @@
     window._waClick = function(label) {
       gtag('event', 'clique_whatsapp', { origem: window._FO, botao: label || 'geral' });
     };
+
+    // ── Tempo de permanência na página ──
+    var _t0 = Date.now();
+    var _milestones = [30, 60, 120, 300];
+    var _timerFired = {};
+    function _checkTime() {
+      var elapsed = Math.round((Date.now() - _t0) / 1000);
+      _milestones.forEach(function(s) {
+        if (!_timerFired[s] && elapsed >= s) {
+          _timerFired[s] = true;
+          gtag('event', 'tempo_pagina', { segundos: s, origem: window._FO });
+        }
+      });
+    }
+    setInterval(_checkTime, 5000);
+
+    // ── Scroll depth ──
+    var _scrollFired = {};
+    window.addEventListener('scroll', function() {
+      var pct = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
+      [25, 50, 75, 90].forEach(function(p) {
+        if (!_scrollFired[p] && pct >= p) {
+          _scrollFired[p] = true;
+          gtag('event', 'scroll_profundidade', { porcentagem: p, origem: window._FO });
+        }
+      });
+    }, { passive: true });
   </script>
   <!-- ===== Fim Google Analytics ===== -->
 </head>
@@ -700,35 +727,35 @@
 
       <div x-data="{ o: null }" class="divide-y divide-black/[0.06]">
         <div class="rv">
-          <button @click="o = o===1?null:1" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===1?null:1; if(o===1)gtag('event','faq_abriu',{pergunta:'agendamento',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Como funciona o agendamento?</span>
             <svg :class="o===1&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===1" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Pelo WhatsApp clicando em qualquer botão desta página, ou pelo formulário de contato. Nossa equipe responde rápido.</p></div>
         </div>
         <div class="rv rv-d1">
-          <button @click="o = o===2?null:2" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===2?null:2; if(o===2)gtag('event','faq_abriu',{pergunta:'lentes_contato',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Lentes de contato dental são para qualquer pessoa?</span>
             <svg :class="o===2&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===2" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Nem todo sorriso precisa de lente, mas todo sorriso precisa de critério. Analisamos estrutura, oclusão e expectativa antes de indicar.</p></div>
         </div>
         <div class="rv rv-d2">
-          <button @click="o = o===3?null:3" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===3?null:3; if(o===3)gtag('event','faq_abriu',{pergunta:'botox_preenchimento',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Botox e preenchimento deixam artificial?</span>
             <svg :class="o===3&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===3" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Quando bem indicados, ninguém percebe que você fez. Só percebe que você está melhor. Cada face é analisada individualmente.</p></div>
         </div>
         <div class="rv rv-d3">
-          <button @click="o = o===4?null:4" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===4?null:4; if(o===4)gtag('event','faq_abriu',{pergunta:'clareamento',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Clareamento enfraquece os dentes?</span>
             <svg :class="o===4&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div x-show="o===4" x-cloak x-transition class="pb-5"><p class="font-body text-dk/55 text-sm leading-relaxed">Não. O clareamento age na pigmentação, não na estrutura. Preserva a saúde dental.</p></div>
         </div>
         <div class="rv rv-d4">
-          <button @click="o = o===5?null:5" class="faq-btn w-full flex items-center justify-between py-5 text-left">
+          <button @click="o = o===5?null:5; if(o===5)gtag('event','faq_abriu',{pergunta:'criancas',origem:window._FO})" class="faq-btn w-full flex items-center justify-between py-5 text-left">
             <span class="font-body font-medium text-dk text-[15px] pr-4">Vocês atendem crianças?</span>
             <svg :class="o===5&&'rotate-180'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 opacity-40"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
@@ -781,6 +808,8 @@
                 if(srv)m+='Serviço: '+srv+'\n';
                 if(msg_text.trim())m+='Mensagem: '+msg_text.trim();
                 window.open('https://wa.me/5514997856641?text='+encodeURIComponent(m),'_blank');
+                gtag('event','formulario_enviado',{servico:srv||'nao_selecionado',origem:window._FO});
+                gtag('event','clique_whatsapp',{botao:'formulario_contato',origem:window._FO});
                 sent=true;
               " class="w-full bg-[#25D366] text-white font-body font-medium py-3.5 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2">
               Enviar Mensagem
@@ -807,7 +836,7 @@
             <p class="font-body font-bold text-dk text-sm">WhatsApp</p>
             <a href="https://wa.me/5514997856641" onclick="_waClick('rodape_telefone')" target="_blank" class="font-body text-pri text-sm hover:underline">(14) 99785-6641</a>
           </div>
-          <a href="https://maps.google.com/?q=Av+Cristo+Rei+235+Marilia+SP" target="_blank" class="block bg-white rounded-xl p-6 text-center hover:shadow-md transition-all group">
+          <a href="https://maps.google.com/?q=Av+Cristo+Rei+235+Marilia+SP" onclick="gtag('event','clique_mapa',{origem:window._FO})" target="_blank" class="block bg-white rounded-xl p-6 text-center hover:shadow-md transition-all group">
             <svg class="mx-auto mb-2 text-pri" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             <p class="font-body text-pri font-medium text-sm group-hover:underline">Ver no Google Maps</p>
           </a>
@@ -981,7 +1010,7 @@
           <a href="#contato" class="font-body text-white/45 text-xs hover:text-white transition-colors">Contato</a>
         </nav>
         <div class="flex gap-3">
-          <a href="https://instagram.com/ferreiraodontologiaesaude" target="_blank" aria-label="Instagram" class="w-9 h-9 bg-white/8 rounded-full flex items-center justify-center hover:bg-white/15 transition-all">
+          <a href="https://instagram.com/ferreiraodontologiaesaude" onclick="gtag('event','clique_social',{rede:'instagram',origem:window._FO})" target="_blank" aria-label="Instagram" class="w-9 h-9 bg-white/8 rounded-full flex items-center justify-center hover:bg-white/15 transition-all">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
           </a>
           <a href="https://wa.me/5514997856641" onclick="_waClick('rodape_icone')" target="_blank" aria-label="WhatsApp" class="w-9 h-9 bg-white/8 rounded-full flex items-center justify-center hover:bg-white/15 transition-all">
@@ -1021,6 +1050,23 @@
     // Reveal
     const obs=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('vis')})},{threshold:.1,rootMargin:'0px 0px -30px 0px'});
     document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+
+    // ── Seções visitadas (IntersectionObserver) ──
+    var _secObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) {
+          var id = e.target.id;
+          if (id) {
+            gtag('event', 'secao_visitada', { secao: id, origem: window._FO });
+            _secObs.unobserve(e.target);
+          }
+        }
+      });
+    }, { threshold: 0.3 });
+    ['sobre','servicos','estrutura','contato'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) _secObs.observe(el);
+    });
 
 
     // ===== GOOGLE DRIVE URL CONVERTER =====
