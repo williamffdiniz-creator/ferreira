@@ -306,7 +306,7 @@
         <a href="#sobre" onclick="window.track('menu_navegacao',{destino:'sobre'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Sobre</a>
         <a href="#servicos" onclick="window.track('menu_navegacao',{destino:'servicos'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Serviços</a>
         <a href="#estrutura" onclick="window.track('menu_navegacao',{destino:'estrutura'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Estrutura</a>
-        <!-- PRODUTOS NAV OCULTO TEMPORARIAMENTE <a href="#produtos" onclick="window.track('menu_navegacao',{destino:'produtos'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Produtos</a> -->
+        <a href="#produtos" onclick="window.track('menu_navegacao',{destino:'produtos'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Produtos</a>
         <a href="#contato" onclick="window.track('menu_navegacao',{destino:'contato'})" class="font-body text-[13px] text-dk/60 hover:text-pri transition-colors tracking-wide uppercase">Contato</a>
       </nav>
       <a href="https://wa.me/5514997856641?text=Olá!%20Gostaria%20de%20agendar%20uma%20consulta%20na%20Ferreira%20Odontologia"
@@ -331,7 +331,7 @@
       <a href="#sobre" onclick="window.track('menu_navegacao',{destino:'sobre'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Sobre</a>
       <a href="#servicos" onclick="window.track('menu_navegacao',{destino:'servicos'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Serviços</a>
       <a href="#estrutura" onclick="window.track('menu_navegacao',{destino:'estrutura'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Estrutura</a>
-      <!-- PRODUTOS NAV MOBILE OCULTO TEMPORARIAMENTE <a href="#produtos" onclick="window.track('menu_navegacao',{destino:'produtos'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Produtos</a> -->
+      <a href="#produtos" onclick="window.track('menu_navegacao',{destino:'produtos'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Produtos</a>
       <a href="#contato" onclick="window.track('menu_navegacao',{destino:'contato'})" @click="menu=false" class="font-display text-[22px] text-white/90 hover:text-sec transition-colors">Contato</a>
       <div class="w-8 h-px bg-white/20 my-1"></div>
       <a href="https://wa.me/5514997856641?text=Olá!%20Gostaria%20de%20agendar%20uma%20consulta%20na%20Ferreira%20Odontologia" target="_blank" onclick="_waClick('menu_mobile')" @click="menu=false" class="flex items-center gap-2 bg-[#25D366] text-white font-body font-medium px-7 py-3 rounded-full shadow-lg">
@@ -977,7 +977,7 @@
 
   
   <!-- PRODUTOS SEÇÃO OCULTA (Tarefa 04) - não apagar! Reativar alterando para display:block -->
-  <div id="produtos-oculto" style="display:none">
+  <div id="produtos-oculto">
   <!-- ========== PRODUTOS ========== -->
   <section id="produtos" class="bg-gradient-to-b from-lt to-white pt-20 pb-6">
     <div class="max-w-7xl mx-auto px-5 lg:px-8">
@@ -993,18 +993,6 @@
   </section>
 
   <div id="catalogo" x-data="catalogo()" x-init="init()">
-    <!-- FILTRO -->
-    <div class="sticky top-[72px] z-40 bg-white/95 backdrop-blur-sm border-b border-black/[0.05]">
-      <div class="max-w-7xl mx-auto px-5 lg:px-8">
-        <div class="flex items-center gap-2 py-3 overflow-x-auto" style="scrollbar-width:none">
-          <span class="font-body text-[11px] text-dk/30 uppercase tracking-widest mr-2 whitespace-nowrap flex-shrink-0">Filtrar:</span>
-          <button @click="filtro='todos'; window.track('filtro_catalogo',{categoria:'todos'})" class="ftab flex-shrink-0" :class="filtro==='todos'?'on':'off'">Todos</button>
-          <template x-for="cat in categorias" :key="cat">
-            <button @click="filtro=cat; window.track('filtro_catalogo',{categoria:cat})" class="ftab flex-shrink-0" :class="filtro===cat?'on':'off'" x-text="cat"></button>
-          </template>
-        </div>
-      </div>
-    </div>
 
     <!-- LOADING -->
     <div x-show="loading" class="max-w-7xl mx-auto px-5 lg:px-8 py-16">
